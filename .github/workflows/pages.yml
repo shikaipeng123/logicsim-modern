@@ -1,0 +1,64 @@
+name: Build & Deploy to GitHub Pages
+
+# 流程：拉取固定版本的前端依赖 -> 跑引擎回归测试 -> 把依赖固化回仓库 -> 发布 public/ 到 Pages
+# 依赖不进源码仓库（约 1.3MB 的第三方库），第一次跑完之后仓库也是自包含的。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write # 用于把拉取到的依赖提交回仓库
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 拉取前端依赖（固定版本）
+        run: bash scripts/vendor-deps.sh public/lib
+
+      - name: 引擎回归测试
+        run: node tests/engine.test.js
+
+      - name: 把依赖固化回仓库
+        run: |
+          if [ -n "$(git status --porcelain public/lib)" ]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add public/lib
+            git commit -m "chore: 固化前端依赖（scripts/vendor-deps.sh 生成）"
+            git push
+          else
+            echo "public/lib 已是最新，无需提交"
+          fi
+
+      - name: 配置 Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true # 仓库还没有 Pages 站点时自动开启
+
+      - name: 打包站点
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 发布到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
