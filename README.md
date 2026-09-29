@@ -141,28 +141,27 @@ a b . fe ge > =
 
 ## 快速开始
 
-纯静态站点，没有构建步骤，但第三方库（JointJS 等约 1.3MB）不进源码仓库，需要先拉一次。
+纯静态站点，**没有任何构建步骤**，克隆下来就能跑。
 
 **方式一：直接看线上版**
 
-打开 <https://shikaipeng123.github.io/logicsim-modern/> —— 线上版已经把依赖一起发布好了，什么都不用做。
+打开 <https://shikaipeng123.github.io/logicsim-modern/>
 
-**方式二：本地跑**
+**方式二：克隆到本地**
 
 ```bash
 git clone https://github.com/shikaipeng123/logicsim-modern.git
 cd logicsim-modern
-bash scripts/vendor-deps.sh          # 拉取固定版本的前端依赖到 public/lib
 python -m http.server 8080 --directory public
 # 然后打开 http://127.0.0.1:8080/
 ```
 
-`scripts/vendor-deps.sh` 只依赖 `curl`，跑一次即可；已经存在的文件会跳过。
-想指定内网镜像时可以用环境变量 `LIBS_BASE` / `JOINTJS_BASE` 覆盖下载地址。
+依赖（`public/lib/`）已经随仓库提供，不需要 npm install。
+万一它缺失了（比如为了缩小仓库手工删过），跑一次 `bash scripts/vendor-deps.sh` 就能按固定版本补回来。
 
 **方式三：直接双击 `public/index.html`**
 
-拉过依赖之后也可以，但用 `file://` 打开时浏览器会拦住读取元件图标的那次 `fetch`，
+也可以，但用 `file://` 打开时浏览器会拦住读取元件图标的那次 `fetch`，
 画布照常显示（退回相对路径），只是导出的 PNG 里会缺元件图标。
 想要完整的导出能力请用方式二。
 
@@ -179,13 +178,15 @@ python -m http.server 8080 --directory public
 | dagre | 0.8.5 | 自动布局算法 |
 | graphlib | 2.1.8 | dagre 的图数据结构依赖 |
 
-这些文件由 `scripts/vendor-deps.sh` 按固定版本拉取到 `public/lib/`，**不进 git**。
-GitHub Actions 在部署前会拉取并提交回仓库，所以线上仓库在第一次部署之后是自包含的。
+合计约 1.1MB，全部放在 `public/lib/`，已提交进仓库。
+`scripts/vendor-deps.sh` 用于在缺失时按固定版本重新拉取（只依赖 `curl`，已存在的文件会跳过），
+部署流程里也会跑一次做兜底。
 
-> 注意：上游项目自带的 `joint.min.js` 是一份被裁剪过的构建，缺少 `highlighters`
-> 与 `elementTools`，会直接报错，所以这里固定使用官方 npm 发行版的
-> `joint.min.js`（428KB，含全部插件）。App.js 里也对这两个插件做了存在性判断，
-> 换成裁剪版时只会退化掉「选中虚线框」和「悬停删除按钮」，不会崩。
+> **踩坑记录**：上游项目自带的 `joint.min.js` 是一份被裁剪过的构建，缺少
+> `highlighters` 和 `elementTools`，用了会直接抛 `Cannot read properties of undefined`。
+> 所以这里固定使用官方 npm 发行版的 `joint.min.js`（428KB，插件齐全）。
+> App.js 里对这两个插件也做了存在性判断，换成裁剪版时只会退化掉「选中虚线框」
+> 和「悬停删除按钮」，不会崩。
 
 ---
 
@@ -253,7 +254,7 @@ GitHub Actions 在部署前会拉取并提交回仓库，所以线上仓库在�
 - 清掉未引用的冗余依赖：`w3.css`、`bootstrap.min.css`、`select2.*`、重复的 `joint.min.js`，页面体积从 4.2MB 降到 1.3MB
 - JointJS 改用官方压缩版 `joint.min.js`（428KB），比原来的未压缩 `joint.js`（1.1MB）小 65%
 - 去掉随包携带的 1.6MB 中文标题字体，改用系统 CJK 字体栈（`--var-font`）
-- 前端依赖按固定版本拉取、不进源码仓库，由 CI 在部署前拉取并固化回仓库
+- 前端依赖固定版本并提供 `scripts/vendor-deps.sh`，缺了随时能按固定版本补回来
 - 加了一套零依赖的 Node 回归测试（见下）
 - 加了 GitHub Actions 自动部署到 GitHub Pages
 
@@ -340,9 +341,9 @@ node tests/engine.test.js
 │   ├── App.js               # 画布、交互、真值表、导出、持久化
 │   ├── latch.json           # 手写图模型示例（选择器搭的锁存器）
 │   ├── assets/              # 元件图标（含 favicon.svg）
-│   └── lib/                 # 前端依赖，由 scripts/vendor-deps.sh 生成，不进 git
+│   └── lib/                 # 前端依赖（已提交，约 1.1MB）
 ├── scripts/
-│   └── vendor-deps.sh       # 按固定版本拉取 public/lib
+│   └── vendor-deps.sh       # 依赖缺失时按固定版本补齐
 ├── tests/
 │   ├── engine.test.js       # 回归测试（零依赖）
 │   └── fixtures.json        # 由原版程序生成的基准夹具
@@ -350,13 +351,14 @@ node tests/engine.test.js
 └── README.md
 ```
 
-运行时依赖的版本与来源见[前端依赖](#前端依赖)。
+运行时依赖的版本与来源见[前端依赖](#前端依赖)（已随仓库提供，无需构建步骤）。
 
 ---
 
 ## 部署
 
-推送到 `main` 分支后，`.github/workflows/pages.yml` 会自动把 `public/` 发布到 GitHub Pages。
+推送到 `main` 分支后，`.github/workflows/pages.yml` 会跑一遍引擎回归测试，
+再把 `public/` 发布到 GitHub Pages（首次运行会自动开启 Pages）。
 
 要发布到别处（Vercel / Cloudflare Pages / Netlify / 任意静态服务器），
 把 **`public/` 目录**作为站点根目录即可，其余什么都不用配。

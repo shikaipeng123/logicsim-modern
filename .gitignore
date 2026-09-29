@@ -12,5 +12,5 @@ node_modules/
 dist/
 .cache/
 
-# 前端依赖由 scripts/vendor-deps.sh 生成；CI 会拉取并固化回仓库
-# 本地开发时可以存在，但首轮推送不带（体积约 1.3MB）
+# 注意：public/lib/ 里的第三方库是提交进仓库的（站点保持自包含，克隆下来即可运行）。
+# 如果它缺失了，跑一次 scripts/vendor-deps.sh 即可恢复。

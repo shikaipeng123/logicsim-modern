@@ -1,7 +1,8 @@
 name: Build & Deploy to GitHub Pages
 
-# 流程：拉取固定版本的前端依赖 -> 跑引擎回归测试 -> 把依赖固化回仓库 -> 发布 public/ 到 Pages
-# 依赖不进源码仓库（约 1.3MB 的第三方库），第一次跑完之后仓库也是自包含的。
+# 流程：确认前端依赖就位 -> 跑引擎回归测试 -> 发布 public/ 到 GitHub Pages
+# public/lib 里的第三方库是提交进仓库的，所以通常这一步什么都不用做；
+# 万一缺失（比如为了缩小仓库手工删过），会由 vendor-deps.sh 按固定版本补回来。
 
 on:
   push:
@@ -9,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # 用于把拉取到的依赖提交回仓库
+  contents: read
   pages: write
   id-token: write
 
@@ -24,23 +25,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 拉取前端依赖（固定版本）
+      - name: 确认前端依赖就位（缺失时按固定版本拉取）
         run: bash scripts/vendor-deps.sh public/lib
 
       - name: 引擎回归测试
         run: node tests/engine.test.js
-
-      - name: 把依赖固化回仓库
-        run: |
-          if [ -n "$(git status --porcelain public/lib)" ]; then
-            git config user.name  "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add public/lib
-            git commit -m "chore: 固化前端依赖（scripts/vendor-deps.sh 生成）"
-            git push
-          else
-            echo "public/lib 已是最新，无需提交"
-          fi
 
       - name: 配置 Pages
         uses: actions/configure-pages@v5
