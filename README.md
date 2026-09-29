@@ -156,8 +156,8 @@ python -m http.server 8080 --directory public
 # 然后打开 http://127.0.0.1:8080/
 ```
 
-依赖（`public/lib/`）已经随仓库提供，不需要 npm install。
-万一它缺失了（比如为了缩小仓库手工删过），跑一次 `bash scripts/vendor-deps.sh` 就能按固定版本补回来。
+不需要 npm install。第三方库放在 `public/lib/`，由 `scripts/vendor-deps.sh` 按固定版本生成
+（只依赖 `curl`），首次部署时 CI 会把它固化进仓库；万一本地缺失，跑一次这个脚本即可补回来。
 
 **方式三：直接双击 `public/index.html`**
 
@@ -178,9 +178,9 @@ python -m http.server 8080 --directory public
 | dagre | 0.8.5 | 自动布局算法 |
 | graphlib | 2.1.8 | dagre 的图数据结构依赖 |
 
-合计约 1.1MB，全部放在 `public/lib/`，已提交进仓库。
-`scripts/vendor-deps.sh` 用于在缺失时按固定版本重新拉取（只依赖 `curl`，已存在的文件会跳过），
-部署流程里也会跑一次做兜底。
+合计约 1.1MB，放在 `public/lib/`，由 `scripts/vendor-deps.sh` 按上表的固定版本生成
+（只依赖 `curl`，已存在的文件会跳过）。部署流程会先跑这个脚本，再把结果固化进仓库，
+所以拉过之后克隆下来就是自包含的，不需要任何构建步骤。
 
 > **踩坑记录**：上游项目自带的 `joint.min.js` 是一份被裁剪过的构建，缺少
 > `highlighters` 和 `elementTools`，用了会直接抛 `Cannot read properties of undefined`。
@@ -341,7 +341,7 @@ node tests/engine.test.js
 │   ├── App.js               # 画布、交互、真值表、导出、持久化
 │   ├── latch.json           # 手写图模型示例（选择器搭的锁存器）
 │   ├── assets/              # 元件图标（含 favicon.svg）
-│   └── lib/                 # 前端依赖（已提交，约 1.1MB）
+│   └── lib/                 # 前端依赖，由 scripts/vendor-deps.sh 生成（CI 会固化进仓库）
 ├── scripts/
 │   └── vendor-deps.sh       # 依赖缺失时按固定版本补齐
 ├── tests/
@@ -351,7 +351,7 @@ node tests/engine.test.js
 └── README.md
 ```
 
-运行时依赖的版本与来源见[前端依赖](#前端依赖)（已随仓库提供，无需构建步骤）。
+运行时依赖的版本与来源见[前端依赖](#前端依赖)，全部是固定版本的静态文件，没有构建步骤。
 
 ---
 
